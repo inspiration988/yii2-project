@@ -5,7 +5,6 @@ use yii\db\Migration;
 /**
  * Class m220409_101625_init
  */
-
 class m220409_101625_init extends Migration
 {
     public function up()
@@ -27,8 +26,6 @@ class m220409_101625_init extends Migration
             'created_at' => $this->integer()->notNull()->unsigned(),
             'updated_at' => $this->integer()->unsigned(),
         ], $tableOptions);
-
-
 
 
         //address table
@@ -98,7 +95,46 @@ class m220409_101625_init extends Migration
             'id'
         );
 
+        $this->insert('province', [
+            'name' => 'Berlin',
+        ]);
+        $this->insert('province', [
+            'name' => 'Saxony',
+        ]);
+        $this->insert('province', [
+            'name' => 'Bavaria',
+        ]);
+
+        $this->insert('city', [
+            'name' => 'Berlin',
+            'province_id' => 1,
+        ]);
+
+        $this->insert('city', [
+            'name' => 'Leipzig',
+            'province_id' => 2,
+        ]);
+
+        $this->insert('city', [
+            'name' => 'Dresden',
+            'province_id' => 2,
+        ]);
+
+        $this->insert('city', [
+            'name' => 'Nuremberg',
+            'province_id' => 3,
+        ]);
+
+        $this->insert('city', [
+            'name' => 'Munich',
+            'province_id' => 3,
+        ]);
+
+
+
+
     }
+
 
 }
 
