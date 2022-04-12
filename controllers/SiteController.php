@@ -3,6 +3,7 @@
 namespace app\controllers;
 
 use app\models\Address;
+use app\models\City;
 use app\models\Province;
 use app\models\User;
 use Yii;
@@ -72,7 +73,7 @@ class SiteController extends Controller
         $address = new Address();
         $step = 1;
 
-        $provinceList = ArrayHelper::map(Province::find()->all(), 'id', 'name');
+
         if (Yii::$app->request->post('step', false)) {
 
 
@@ -119,7 +120,7 @@ class SiteController extends Controller
             $user->scenario = User::SCENARIO_STEP_2;
         }
 
-        return $this->render('register', compact('user', 'address', 'step', 'provinceList'));
+        return $this->render('register', compact('user', 'address', 'step'));
 
     }
 
@@ -159,6 +160,30 @@ class SiteController extends Controller
         ];
         curl_close($ch);
         return $response;
+    }
+
+    /**
+     *
+     * return the list of cities based on proivinced_id
+     * @return array|string[]
+     */
+    public function actionCityList():string
+    {
+        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+        $out = [];
+        if (isset($_POST['depdrop_parents'])) {
+            $parents = $_POST['depdrop_parents'];
+            if ($parents != null) {
+                $provinceId = $parents[0];
+                $list = City::find()->andWhere(['province_id' => $provinceId])->asArray()->all();
+                foreach ($list as $i => $pro) {
+                    $out[] = ['id' => $pro['id'], 'name' => $pro['name']];
+
+                }
+                return ['output' => $out, 'selected' => ''];
+            }
+        }
+        return ['output' => '', 'selected' => ''];
     }
 
 }
