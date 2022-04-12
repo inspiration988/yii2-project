@@ -26,9 +26,10 @@ you should run migration
 `php yii migration`
 
 **NOTES:**
-- i consider 2 ways to save state of the user, cookie and session and you can switch between them from in config web.php file
-`
-'components' => [
+- i consider 2 ways to save state of the user, cookie and session and you can switch between them from  config web.php file
+
+
+`'components' => [
 
         'tempStorage' => [
             'class' => 'app\components\SessionStorage',
