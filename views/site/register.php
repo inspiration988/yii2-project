@@ -1,16 +1,19 @@
 <?php
 
-use app\components\SessionStorage;
+use app\models\Address;
+use app\models\Province;
+use app\models\User;
+use yii\helpers\ArrayHelper;
 use yii\widgets\ActiveForm;
 use yii\helpers\Html;
 use kartik\depdrop\DepDrop;
 use yii\helpers\Url;
 
+/* @var $user User */
+/* @var $address Address */
+
+$provinceList = ArrayHelper::map(Province::find()->all(), 'id', 'name');
 ?>
-
-
-
-
 
     <div id="step_1" class="<?= (Yii::$app->session->get('step') == 1 || is_null(Yii::$app->session->get('step'))) ? "" : "hidden" ?>">
         <?php
