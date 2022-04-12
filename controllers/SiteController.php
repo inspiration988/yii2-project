@@ -102,7 +102,12 @@ class SiteController extends Controller
                     $address->number = Yii::$app->tempStorage::getValue('number');
                     $address->city_id = Yii::$app->tempStorage::getValue('city_id');
                     if ($address->save()) {
-
+                        $result = $this->sendPaymentData($user->id, $user->iban, $user->first_name . " " . $user->last_name);
+                        var_dump($result);die;
+                        if ($result) {
+                            $user->payment_data_id = json_decode($result, 1);
+                            $user->save();
+                        }
                     }
                 }
 
@@ -118,5 +123,42 @@ class SiteController extends Controller
 
     }
 
+
+    /**
+     * @param integer $customerId
+     * @param string $iban
+     * @param string $fullName
+     * @return string
+     */
+    private function sendPaymentData(int $customerId, string $iban, string $fullName): string
+    {
+        $response = [];
+        $data = [
+            "customerId" => $customerId,
+            "iban" => $iban,
+            "owner" => $fullName
+        ];
+        $url = "http://37f32cl571.execute-api.eu-central-1.amazonaws.com/default/wunderfleet-recruiting-backend-dev-save-payment-data";
+        $ch = curl_init($url);
+        $payload = json_encode(array("data" => $data));
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        $result = curl_exec($ch);
+        var_dump(curl_error($ch));die;
+//        if ($result === false) {
+//            return false;
+//        }
+        $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        var_dump($httpcode);die;
+        $response = [
+            'httpCode' => $httpcode,
+            'result' => $result
+        ];
+        curl_close($ch);
+        return $response;
+    }
 
 }
