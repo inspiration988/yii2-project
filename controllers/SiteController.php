@@ -2,62 +2,18 @@
 
 namespace app\controllers;
 
+use app\components\RequestHttp;
 use app\models\Address;
 use app\models\City;
-use app\models\Province;
 use app\models\User;
 use Yii;
-use yii\filters\AccessControl;
-use yii\helpers\ArrayHelper;
 use yii\web\Controller;
-use yii\web\Response;
-use yii\filters\VerbFilter;
-use app\models\LoginForm;
-use app\models\ContactForm;
+
 
 class SiteController extends Controller
 {
-    /**
-     * {@inheritdoc}
-     */
-    public function behaviors()
-    {
-        return [
-            'access' => [
-                'class' => AccessControl::className(),
-                'only' => ['register'],
-                'rules' => [
-                    [
-                        'actions' => ['register'],
-                        'allow' => true,
-                        'roles' => ['@'],
-                    ],
-                ],
-            ],
-            'verbs' => [
-                'class' => VerbFilter::className(),
-                'actions' => [
-                    'logout' => ['post'],
-                ],
-            ],
-        ];
-    }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function actions()
-    {
-        return [
-            'error' => [
-                'class' => 'yii\web\ErrorAction',
-            ],
-            'captcha' => [
-                'class' => 'yii\captcha\CaptchaAction',
-                'fixedVerifyCode' => YII_ENV_TEST ? 'testme' : null,
-            ],
-        ];
-    }
+    protected string $url = "https://37f32cl571.execute-api.eu-central-1.amazonaws.com/default/wunderfleet-recruiting-backend-dev-save-payment-data";
 
     /**
      * submit user data
@@ -65,19 +21,33 @@ class SiteController extends Controller
      */
     public function actionRegister(): string
     {
-        if (Yii::$app->tempStorage::getValue('step') == 4) {
-            Yii::$app->tempStorage::destroy();
-        }
+
 
         $user = new User();
+        $user->scenario = User::SCENARIO_STEP_1;
+
         $address = new Address();
+
+        // Load Temp storage to model
+        Yii::$app->tempStorage::loadtoModel($user);
+        Yii::$app->tempStorage::loadtoModel($address);
+
+
         $step = 1;
+        $message = "";
+
 
 
         if (Yii::$app->request->post('step', false)) {
-
-
             $post = Yii::$app->request->post();
+            $step = Yii::$app->request->post('step');
+
+            // SET SCENARIO
+            if ($step+1 == 3) {
+                $user->scenario = User::SCENARIO_STEP_2;
+            }
+
+
             if ($user->load($post)) {
                 $model = $user;
             } elseif ($address->load($post)) {
@@ -86,80 +56,61 @@ class SiteController extends Controller
                 throw new \Exception("Invalid model ");
             }
 
-            $step = Yii::$app->request->post('step');
-            Yii::$app->tempStorage::Save($model, $post, $step + 1);
-
 
             if ($step == 3) {
-                $user->first_name = Yii::$app->tempStorage::getValue('first_name');
-                $user->last_name = Yii::$app->tempStorage::getValue('last_name');
-                $user->phone = Yii::$app->tempStorage::getValue('phone');
-                $user->created_at = time();
+                // Load From TempStorage
                 if ($user->save()) {
                     $address->user_id = $user->id;
-                    $address->house = Yii::$app->tempStorage::getValue('house');
-                    $address->zipcode = Yii::$app->tempStorage::getValue('zipcode');
-                    $address->street = Yii::$app->tempStorage::getValue('street');
-                    $address->number = Yii::$app->tempStorage::getValue('number');
-                    $address->city_id = Yii::$app->tempStorage::getValue('city_id');
                     if ($address->save()) {
-                        $result = $this->sendPaymentData($user->id, $user->iban, $user->first_name . " " . $user->last_name);
-                        var_dump($result);die;
-                        if ($result) {
-                            $user->payment_data_id = json_decode($result, 1);
+                        $data = [
+                            "customerId" => $user->id,
+                            "iban" => $user->iban,
+                            "owner" => $user->first_name . " " . $user->last_name
+                        ];
+                        $curlApi = RequestHttp::post($this->url, $data);
+                        $paymentDataId = "";
+                        if ($curlApi->getStatusCode() == 200) {
+                            $result = json_decode($curlApi->getContent(), true);
+                            $paymentDataId = $result['paymentDataId'];
+                            $user->payment_data_id = $paymentDataId;
                             $user->save();
+
                         }
+
+                        Yii::$app->tempStorage::destroy();
+                         $this->redirect(['final', 'paymentId' => $paymentDataId]);
                     }
                 }
 
             }
-        }
-        if ($step == 1) {
-            $user->scenario = User::SCENARIO_STEP_1;
-        } elseif ($step == 3) {
-            $user->scenario = User::SCENARIO_STEP_2;
+
+            // if error dosen't occured
+            if (empty($user->getErrors()) && empty($address->getErrors())) {
+                Yii::$app->tempStorage::SaveAsModel($model, $post);
+            }
+
+
+            $step++;
         }
 
-        return $this->render('register', compact('user', 'address', 'step'));
+
+
+        return $this->render('register', compact('user', 'address', 'step', 'message'));
 
     }
 
-
-    /**
-     * @param integer $customerId
-     * @param string $iban
-     * @param string $fullName
-     * @return string
-     */
-    private function sendPaymentData(int $customerId, string $iban, string $fullName): string
+    public function actionFinal($paymentId = "")
     {
-        $response = [];
-        $data = [
-            "customerId" => $customerId,
-            "iban" => $iban,
-            "owner" => $fullName
-        ];
-        $url = "http://37f32cl571.execute-api.eu-central-1.amazonaws.com/default/wunderfleet-recruiting-backend-dev-save-payment-data";
-        $ch = curl_init($url);
-        $payload = json_encode(array("data" => $data));
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        $result = curl_exec($ch);
-        var_dump(curl_error($ch));die;
-//        if ($result === false) {
-//            return false;
-//        }
-        $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        var_dump($httpcode);die;
-        $response = [
-            'httpCode' => $httpcode,
-            'result' => $result
-        ];
-        curl_close($ch);
-        return $response;
+        Yii::$app->tempStorage::destroy();
+        /**
+         * for prevent xss injection or other security issue , i can send paymentId by session or use security method such as htmlspecialchars
+         */
+        if (empty($paymentId)) {
+            $message = "unsuccessfull registration";
+        } else {
+            $message = "sucessfull registration , your paymentDataId is " . htmlspecialchars($paymentId);
+        }
+        return $this->render('final', ['message' => $message]);
     }
 
     /**
@@ -167,7 +118,7 @@ class SiteController extends Controller
      * return the list of cities based on proivinced_id
      * @return array|string[]
      */
-    public function actionCityList():string
+    public function actionCityList(): array
     {
         Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
         $out = [];
@@ -186,4 +137,7 @@ class SiteController extends Controller
         return ['output' => '', 'selected' => ''];
     }
 
+    public function actionIndex(){
+        return $this->redirect(['register']);
+    }
 }
