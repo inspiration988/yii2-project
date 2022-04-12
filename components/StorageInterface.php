@@ -14,7 +14,7 @@ interface StorageInterface
      * @param array $data
      * @param int $step
      */
-    public static function save(ActiveRecord $model, array $data, int $step): void;
+    public static function SaveAsModel(ActiveRecord $model, array $data): void;
 
     /**
      * @param string $attributeName
@@ -30,7 +30,11 @@ interface StorageInterface
     public static function destroy(): void ;
 
 
-
+    /**
+     * @param ActiveRecord $model
+     * @return mixed
+     */
+    public static function loadtoModel(ActiveRecord &$model);
 
 
 }

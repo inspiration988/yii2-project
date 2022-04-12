@@ -13,7 +13,7 @@ class CookieStorage implements StorageInterface
      * @param array $data
      * @param int $step
      */
-    public static function Save(ActiveRecord $model, array $data, int $step): void
+    public static function SaveAsModel(ActiveRecord $model, array $data): void
     {
         $cookies = Yii::$app->response->cookies;
         $model->load($data);
@@ -26,10 +26,6 @@ class CookieStorage implements StorageInterface
                 ]));
             }
         }
-        $cookies->add(new \yii\web\Cookie([
-            'name' =>'step',
-            'value' => $step,
-        ]));
 
     }
 
@@ -42,6 +38,15 @@ class CookieStorage implements StorageInterface
     {
         $cookies = Yii::$app->request->cookies;
         return ($cookies->has($attributeName) ? $cookies->getValue($attributeName) : $defualtValue);
+    }
+
+    public static function setValue($attributeName, $value){
+        $cookies = Yii::$app->response->cookies;
+        $cookies->add(new \yii\web\Cookie([
+            'name' => $attributeName,
+            'value' => $value,
+        ]));
+
     }
 
     /**
@@ -61,5 +66,16 @@ class CookieStorage implements StorageInterface
         }
     }
 
+    /**
+     * @param ActiveRecord $model
+     * @return mixed
+     */
+    public static function loadtoModel(ActiveRecord &$model){
+        $index = $model::className();
+        $cookies = Yii::$app->request->cookies;
+        if($cookies->has($index)){
+            $model->attributes =  $cookies->getValue($index);
+        }
+    }
 
 }

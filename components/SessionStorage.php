@@ -13,18 +13,17 @@ class SessionStorage implements StorageInterface
      * @param array $data
      * @param int $step
      */
-    public static function Save(ActiveRecord $model, array $data, int $step): void
+    public static function SaveAsModel(ActiveRecord $model, array $data): void
     {
         $session = \Yii::$app->session;
         $model->load($data);
-
+        $values = [];
         foreach ($model->getAttributes() as $attr => $val) {
             if (!is_null($val)) {
-                $session->set($attr, $val);
+                $values[$attr] = $val;
             }
         }
-
-        $session->set('step', $step);
+        $session->set($model::className(), $values);
 
     }
 
@@ -38,10 +37,24 @@ class SessionStorage implements StorageInterface
         return (Yii::$app->session->has($attributeName) ? Yii::$app->session->get($attributeName) : $defualtValue);
     }
 
+    public static function setValue($attributeName, $value){
+        $session = \Yii::$app->session;
+        $session->set($attributeName, $value);
+    }
+
     public static function destroy(): void
     {
         Yii::$app->session->destroy();
     }
+
+    public static function loadtoModel(ActiveRecord &$model){
+        $index = $model::className();
+        if(Yii::$app->session->has($index)){
+            $model->attributes = Yii::$app->session->get($index);
+        }
+    }
+
+
 
 
 }
